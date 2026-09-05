@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  /* Основа — виключно світла: білий + зелений */
+  --background: #ffffff;
+  --surface: #f3f9f4;
+  --surface-strong: #e6f1e9;
+  --foreground: #13241a;
+  --muted: #4d6155;
+  --border: #d7e7dc;
+
+  /* Зелений — основний акцент дій */
+  --accent: #146c43;
+  --accent-hover: #0f5533;
+  --accent-deep: #0e4a2e;
+  --accent-soft: #e3f1e8;
+
+  /* Акценти */
+  --red: #c1121f;
+  --red-soft: #fdeaec;
+  --blue: #1d4ed8;
+  --blue-soft: #e8eefc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+}
+
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, sans-serif;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display), "Times New Roman", serif;
+}
