@@ -15,6 +15,32 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
+/**
+ * Домен сайту для metadataBase / canonical / OG.
+ *
+ * Значення береться ТІЛЬКИ з NEXT_PUBLIC_SITE_URL: серверні змінні
+ * (VERCEL_URL тощо) сюди не доїжджають, бо цей модуль спільний з
+ * клієнтськими компонентами — перевірено збіркою, вони резолвляться
+ * в undefined. Тому на Vercel цю змінну треба задати руками.
+ *
+ * Захист від падіння білда з "Invalid URL":
+ *  - порожній рядок і пробіли не рахуються значенням (?? їх пропускав);
+ *  - значення без протоколу доповнюється https://;
+ *  - якщо це взагалі не URL — лишається localhost, і білд проходить.
+ */
+function resolveSiteUrl() {
+  const value = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (value) {
+    const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    try {
+      return new URL(withProtocol).origin;
+    } catch {
+      // не URL — падаємо на localhost нижче
+    }
+  }
+  return "http://localhost:3000";
+}
+
 export const BOOK = {
   title: "Талалаївське весілля",
   // TODO: ім'я автора
@@ -24,7 +50,7 @@ export const BOOK = {
   // TODO: 1–2 речення для hero і SEO-опису
   shortDescription:
     "Книга про весільний обряд Талалаївщини: від сватання до перезви — з піснями, звичаями та живими свідченнями.",
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  siteUrl: resolveSiteUrl(),
   coverSrc: "/cover.png",
   // Реальні пікселі файлу. Міняєте обкладинку — оновіть і ці два числа,
   // інакше next/image рахуватиме пропорцію за старими й обріже картинку.
