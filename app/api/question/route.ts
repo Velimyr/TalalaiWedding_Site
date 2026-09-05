@@ -22,6 +22,12 @@ const nowTimestamp = () =>
 
 const getEnv = (key: string) => process.env[key];
 
+const runChannel = (name: string, run: () => Promise<boolean>) =>
+  run().catch((error) => {
+    console.error(`[${name}] канал впав:`, error);
+    return false;
+  });
+
 const questionRows = (payload: QuestionPayload) => [
   ["Імʼя", payload.name],
   ["Контакт", payload.contact],
@@ -34,11 +40,14 @@ async function sendTelegram(payload: QuestionPayload) {
   const chatId = getEnv("TELEGRAM_CHAT_ID");
 
   if (!token || !chatId) {
+    console.warn(
+      "[telegram] пропущено: не задані TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID",
+    );
     return false;
   }
 
   const text = [
-    `Нове питання щодо замовлення (${BOOK.title})`,
+    `Нове питання щодо замовлення «${BOOK.title}»`,
     ...questionRows(payload).map(([label, value]) => `${label}: ${value}`),
   ].join("\n");
 
@@ -51,7 +60,15 @@ async function sendTelegram(payload: QuestionPayload) {
     },
   );
 
-  return response.ok;
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error(
+      `[telegram] API відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 async function sendEmail(payload: QuestionPayload) {
@@ -60,11 +77,14 @@ async function sendEmail(payload: QuestionPayload) {
   const to = getEnv("RESEND_TO_EMAIL");
 
   if (!apiKey || !from || !to) {
+    console.warn(
+      "[email] пропущено: не задані RESEND_API_KEY / RESEND_FROM_EMAIL / RESEND_TO_EMAIL",
+    );
     return false;
   }
 
   const html = `
-    <h2>Нове питання щодо замовлення</h2>
+    <h2>Нове питання щодо замовлення «${escapeHtml(BOOK.title)}»</h2>
     <ul>
       ${questionRows(payload)
         .map(
@@ -89,7 +109,15 @@ async function sendEmail(payload: QuestionPayload) {
     }),
   });
 
-  return response.ok;
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error(
+      `[email] Resend відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 export async function POST(request: Request) {
@@ -113,8 +141,8 @@ export async function POST(request: Request) {
     const normalized = payload as QuestionPayload;
 
     const [telegramOk, emailOk] = await Promise.all([
-      sendTelegram(normalized).catch(() => false),
-      sendEmail(normalized).catch(() => false),
+      runChannel("telegram", () => sendTelegram(normalized)),
+      runChannel("email", () => sendEmail(normalized)),
     ]);
 
     return NextResponse.json({

@@ -38,6 +38,18 @@ const nowTimestamp = () =>
 
 const getEnv = (key: string) => process.env[key];
 
+/**
+ * Канали доставки навмисно не валять замовлення. Але мовчати вони теж
+ * не мають: без логів «не налаштовано», «API відмовив» і «мережа впала»
+ * виглядають однаково — просто notifications.<канал> === false.
+ * Токени в лог не потрапляють: пишемо лише статус і тіло відповіді.
+ */
+const runChannel = (name: string, run: () => Promise<boolean>) =>
+  run().catch((error) => {
+    console.error(`[${name}] канал впав:`, error);
+    return false;
+  });
+
 const orderRows = (payload: OrderPayload) => [
   ["Варіант", variantById(payload.variant)?.label ?? payload.variant],
   ["Оплата", paymentLabelById(payload.paymentMethod) ?? payload.paymentMethod],
@@ -56,6 +68,9 @@ async function appendToGoogleSheet(orderId: string, payload: OrderPayload) {
   const privateKey = getEnv("GOOGLE_SHEETS_PRIVATE_KEY")?.replace(/\\n/g, "\n");
 
   if (!sheetId || !clientEmail || !privateKey) {
+    console.warn(
+      "[google-sheets] пропущено: не задані GOOGLE_SHEETS_SHEET_ID / _CLIENT_EMAIL / _PRIVATE_KEY",
+    );
     return false;
   }
 
@@ -96,12 +111,15 @@ async function sendTelegram(orderId: string, payload: OrderPayload) {
   const chatId = getEnv("TELEGRAM_CHAT_ID");
 
   if (!token || !chatId) {
+    console.warn(
+      "[telegram] пропущено: не задані TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID",
+    );
     return false;
   }
 
   // Без parse_mode — тоді екранування розмітки не потрібне.
   const text = [
-    `Нове замовлення #${orderId}`,
+    `Нове замовлення «${BOOK.title}» #${orderId}`,
     ...orderRows(payload).map(([label, value]) => `${label}: ${value}`),
   ].join("\n");
 
@@ -114,7 +132,15 @@ async function sendTelegram(orderId: string, payload: OrderPayload) {
     },
   );
 
-  return response.ok;
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error(
+      `[telegram] API відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 async function sendEmail(orderId: string, payload: OrderPayload) {
@@ -123,11 +149,14 @@ async function sendEmail(orderId: string, payload: OrderPayload) {
   const to = getEnv("RESEND_TO_EMAIL");
 
   if (!apiKey || !from || !to) {
+    console.warn(
+      "[email] пропущено: не задані RESEND_API_KEY / RESEND_FROM_EMAIL / RESEND_TO_EMAIL",
+    );
     return false;
   }
 
   const html = `
-    <h2>Нове замовлення #${escapeHtml(orderId)}</h2>
+    <h2>Нове замовлення «${escapeHtml(BOOK.title)}» #${escapeHtml(orderId)}</h2>
     <ul>
       ${orderRows(payload)
         .map(
@@ -147,12 +176,20 @@ async function sendEmail(orderId: string, payload: OrderPayload) {
     body: JSON.stringify({
       from,
       to,
-      subject: `Нове замовлення книги #${orderId}`,
+      subject: `Нове замовлення «${BOOK.title}» #${orderId}`,
       html,
     }),
   });
 
-  return response.ok;
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error(
+      `[email] Resend відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 export async function POST(request: Request) {
@@ -188,9 +225,9 @@ export async function POST(request: Request) {
     const normalized = payload as OrderPayload;
 
     const [sheetOk, telegramOk, emailOk] = await Promise.all([
-      appendToGoogleSheet(orderId, normalized).catch(() => false),
-      sendTelegram(orderId, normalized).catch(() => false),
-      sendEmail(orderId, normalized).catch(() => false),
+      runChannel("google-sheets", () => appendToGoogleSheet(orderId, normalized)),
+      runChannel("telegram", () => sendTelegram(orderId, normalized)),
+      runChannel("email", () => sendEmail(orderId, normalized)),
     ]);
 
     return NextResponse.json({
