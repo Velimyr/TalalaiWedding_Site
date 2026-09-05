@@ -110,6 +110,13 @@ export const paymentLabelById = (id: string) =>
 export const IS_PREORDER =
   process.env.NEXT_PUBLIC_PREORDER_ENABLED?.toLowerCase() === "true";
 
+/** Текст у модалці успіху — залежить від того, чи ввімкнене передзамовлення. */
+export const ORDER_SUCCESS_TEXT =
+  "Ваше замовлення збережено. Очікуйте на відправку найближчим часом.";
+
+export const PREORDER_SUCCESS_TEXT =
+  "Ваше передзамовлення збережено. Книга ще в друку — щойно наклад надійде, ми надішлемо ваш примірник і повідомимо вас.";
+
 export const PREORDER_TEXT =
   "Наразі книга доступна у форматі передзамовлення. Щойно наклад надійде з друкарні, ми надішлемо ваш примірник. Враховуйте це при замовленні.";
 

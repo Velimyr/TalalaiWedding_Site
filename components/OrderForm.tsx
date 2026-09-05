@@ -5,7 +5,9 @@ import {
   BOOK,
   HAS_PAYMENT_URL,
   IS_PREORDER,
+  ORDER_SUCCESS_TEXT,
   PAYMENT_METHODS,
+  PREORDER_SUCCESS_TEXT,
   PREORDER_TEXT,
   VARIANTS,
   variantById,
@@ -297,10 +299,7 @@ export default function OrderForm() {
               </button>
             </div>
             <div className="mt-6 space-y-4 text-sm text-muted">
-              <p>
-                Ваше замовлення збережено. Очікуйте на відправку найближчим
-                часом.
-              </p>
+              <p>{IS_PREORDER ? PREORDER_SUCCESS_TEXT : ORDER_SUCCESS_TEXT}</p>
               {orderMeta.paymentMethod === "online" ? (
                 <p className="font-semibold text-red">
                   Не забудьте виконати оплату замовлення.
