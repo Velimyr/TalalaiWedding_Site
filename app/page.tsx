@@ -2,6 +2,7 @@ import Image from "next/image";
 import LeafVine from "@/components/LeafVine";
 import OrderForm from "@/components/OrderForm";
 import QuestionModal from "@/components/QuestionModal";
+import SiteHeader from "@/components/SiteHeader";
 import {
   ABOUT,
   BOOK,
@@ -11,34 +12,10 @@ import {
   REVIEWS_LINK,
 } from "@/config/book";
 
-const navItems = [
-  { href: "#about", label: "Про книгу" },
-  { href: "#order", label: "Замовити" },
-  ...(REVIEWS.length > 0 ? [{ href: "#reviews", label: "Відгуки" }] : []),
-  { href: "#links", label: "Посилання" },
-];
-
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-5">
-          <p className="font-display text-2xl leading-none text-accent-deep sm:text-3xl">
-            {BOOK.title}
-          </p>
-          <nav className="hidden items-center gap-8 text-base text-muted md:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                className="transition hover:text-accent"
-                href={item.href}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1">
         <section className="relative overflow-hidden border-b border-line">
