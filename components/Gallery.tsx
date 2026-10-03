@@ -435,7 +435,9 @@ export default function Gallery({ photos }: { photos: GalleryPhoto[] }) {
       {/* Підпис займає рівно стільки, скільки в ньому тексту: висоту тут
           більше не резервуємо, а на кадрах без опису блока немає взагалі —
           усе вивільнене місце дістається фото. */}
-      {photo.description || photo.year ? (
+      {/* TODO: тимчасово — назва файлу показується завжди, тож блок підпису
+          поки є на кожному кадрі. Прибрати разом із fileName. */}
+      {photo.description || photo.year || photo.fileName ? (
         <div className="mx-auto w-full max-w-3xl shrink-0 px-6 py-2 text-center">
           {photo.description ? (
             <p className="text-sm leading-snug text-foreground sm:text-base">
@@ -447,6 +449,7 @@ export default function Gallery({ photos }: { photos: GalleryPhoto[] }) {
               {photo.year}
             </p>
           ) : null}
+          <p className="font-mono text-xs text-muted">{photo.fileName}</p>
         </div>
       ) : null}
 

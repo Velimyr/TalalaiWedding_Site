@@ -28,6 +28,8 @@ export type GalleryPhoto = {
   height: number;
   description: string;
   year: string;
+  /** TODO: тимчасово — назва вихідного скану з каталогу, для звірки підписів */
+  fileName: string;
 };
 
 type CatalogEntry = {
@@ -87,10 +89,10 @@ async function imageSize(fileName: string) {
 export const getGalleryPhotos = cache(async (): Promise<GalleryPhoto[]> => {
   const raw = await readFile(path.join(PUBLIC_DIR, "photo_catalog.json"), "utf8");
   const catalog = JSON.parse(raw) as Catalog;
-  const entries = Object.values(catalog.files ?? {});
+  const entries = Object.entries(catalog.files ?? {});
 
   const photos = await Promise.all(
-    entries.map(async (entry) => {
+    entries.map(async ([fileName, entry]) => {
       if (!entry.before || !entry.after) return null;
 
       const size = await imageSize(entry.before);
@@ -104,6 +106,7 @@ export const getGalleryPhotos = cache(async (): Promise<GalleryPhoto[]> => {
         height: size.height,
         description: entry.description?.trim() ?? "",
         year: entry.year?.trim() ?? "",
+        fileName,
       } satisfies GalleryPhoto;
     }),
   );
