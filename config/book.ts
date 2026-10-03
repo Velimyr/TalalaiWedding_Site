@@ -77,7 +77,8 @@ export const ABOUT = {
 } as const;
 
 export const VARIANTS = [
-  { id: "book", label: "Книга", price: 700 },
+  // TODO: реальна ціна; поки заглушка рядком, щоб відображалось «000 грн»
+  { id: "book", label: "Книга", price: "000" },
 ] as const;
 
 export type VariantId = (typeof VARIANTS)[number]["id"];
@@ -131,7 +132,7 @@ export const QUESTION_BLOCK = {
 
 export const CONTENT_BLOCK = {
   heading: "Більше краєзнавчого контенту",
-  text: "Краєзнавство, архівні пошуки та генеалогія — на каналі автора.",
+  text: "Краєзнавство, архівні пошуки та генеалогія — на каналі.",
   links: [
     {
       label: "«Записки диванного архівіста» — Telegram",
