@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import {
   BOOK,
@@ -52,9 +52,6 @@ const EMPTY_FORM: OrderForm = {
   library: "",
 };
 
-/** Якір /#gift відкриває форму одразу в режимі подарунка (кнопка в hero). */
-const GIFT_HASH = "#gift";
-
 const fieldClass =
   "h-11 rounded-lg border border-line bg-white px-3 text-foreground transition focus:border-accent";
 
@@ -104,25 +101,8 @@ export default function OrderForm() {
     [form.variant],
   );
 
-  // /#gift — і при заході за посиланням, і при натиску кнопки в hero.
-  useEffect(() => {
-    const syncWithHash = () => {
-      if (window.location.hash === GIFT_HASH) {
-        setForm((prev) => ({ ...prev, kind: "gift" }));
-      }
-    };
-    syncWithHash();
-    window.addEventListener("hashchange", syncWithHash);
-    return () => window.removeEventListener("hashchange", syncWithHash);
-  }, []);
-
   const setKind = (kind: OrderKind) => {
     setForm((prev) => ({ ...prev, kind }));
-    // Інакше повторний натиск «Подарувати бібліотеці» в hero не змінив би
-    // хеш — і hashchange не спрацював би.
-    if (kind !== "gift" && window.location.hash === GIFT_HASH) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
   };
 
   const onChange =
@@ -186,10 +166,7 @@ export default function OrderForm() {
         : ORDER_SUCCESS_TEXT;
 
   return (
-    <div
-      id="gift"
-      className="rounded-3xl border border-line bg-surface p-6 shadow-[0_18px_40px_-28px_rgba(20,108,67,0.55)] sm:p-8"
-    >
+    <div className="rounded-3xl border border-line bg-surface p-6 shadow-[0_18px_40px_-28px_rgba(20,108,67,0.55)] sm:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.22em] text-accent">
@@ -209,8 +186,8 @@ export default function OrderForm() {
 
       <div
         role="radiogroup"
-        aria-label="Для кого замовлення"
-        className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-line bg-white p-1"
+        aria-label="Для кого книга"
+        className="mb-6 grid gap-3 sm:grid-cols-2"
       >
         {ORDER_KINDS.map((kind) => {
           const isActive = form.kind === kind.id;
@@ -221,10 +198,10 @@ export default function OrderForm() {
               role="radio"
               aria-checked={isActive}
               onClick={() => setKind(kind.id)}
-              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+              className={`rounded-xl border px-4 py-3 text-base font-semibold transition ${
                 isActive
-                  ? "bg-accent text-white shadow-sm"
-                  : "text-muted hover:text-accent-deep"
+                  ? "border-accent bg-accent text-white shadow-[0_12px_24px_-16px_rgba(20,108,67,0.9)]"
+                  : "border-accent/30 bg-white text-accent-deep hover:border-accent/60"
               }`}
             >
               {kind.label}

@@ -46,17 +46,10 @@ export default function Home() {
               <p className="max-w-xl text-lg leading-relaxed text-muted">
                 {BOOK.shortDescription}
               </p>
-              {/* На телефоні кнопки стоять стовпчиком, головна — зверху. */}
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
-                <a
-                  href="#gift"
-                  className="rounded-xl border border-accent/30 bg-white/70 px-6 py-4 text-center text-base font-semibold text-accent-deep transition hover:border-accent/60"
-                >
-                  Подарувати бібліотеці
-                </a>
+              <div className="flex flex-wrap items-center justify-end gap-4">
                 <a
                   href="#order"
-                  className="rounded-xl bg-accent px-8 py-4 text-center text-base font-semibold text-white shadow-[0_16px_30px_-16px_rgba(20,108,67,0.9)] transition hover:bg-accent-hover"
+                  className="rounded-xl bg-accent px-8 py-4 text-base font-semibold text-white shadow-[0_16px_30px_-16px_rgba(20,108,67,0.9)] transition hover:bg-accent-hover"
                 >
                   Замовити книгу
                 </a>
