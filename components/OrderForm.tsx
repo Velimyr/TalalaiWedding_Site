@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Modal from "@/components/Modal";
 import {
   BOOK,
-  HAS_PAYMENT_URL,
   IS_PREORDER,
   ORDER_SUCCESS_TEXT,
   PAYMENT_METHODS,
@@ -15,6 +15,7 @@ import {
   type PaymentMethodId,
   type VariantId,
 } from "@/config/book";
+import { closePaymentTab, goToPayment, openPaymentTab } from "@/lib/payment";
 
 /** Порожній рядок — покупець ще не обрав спосіб оплати. */
 type PaymentSelection = PaymentMethodId | "";
@@ -73,18 +74,9 @@ export default function OrderForm() {
     setStatus("idle");
     setNeedsManualPayment(false);
 
-    let paymentWindow: Window | null = null;
-    const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
-
-    // Вкладку оплати відкриваємо синхронно, до будь-якого await —
-    // інакше браузер втратить звʼязок із жестом користувача і заблокує попап.
-    if (form.paymentMethod === "online" && HAS_PAYMENT_URL && !isIOS) {
-      paymentWindow = window.open("about:blank", "_blank");
-      if (paymentWindow) {
-        paymentWindow.opener = null;
-      }
-    }
+    // Вкладку оплати відкриваємо синхронно, до будь-якого await.
+    const paymentTab =
+      form.paymentMethod === "online" ? openPaymentTab() : null;
 
     try {
       const response = await fetch("/api/order", {
@@ -104,38 +96,15 @@ export default function OrderForm() {
         paymentMethod: form.paymentMethod,
       });
 
-      if (form.paymentMethod === "online" && HAS_PAYMENT_URL) {
-        if (isIOS) {
-          // iOS Safari блокує відкладені попапи — переходимо в тій самій вкладці.
-          window.location.href = BOOK.paymentUrl;
-        } else if (paymentWindow && !paymentWindow.closed) {
-          try {
-            paymentWindow.location.href = BOOK.paymentUrl;
-            window.setTimeout(() => {
-              try {
-                const href = paymentWindow.location.href;
-                if (href === "about:blank" || href === "about:blank#") {
-                  setNeedsManualPayment(true);
-                }
-              } catch {
-                // Cross-origin читання впало → навігація успішна.
-              }
-            }, 1000);
-          } catch {
-            setNeedsManualPayment(true);
-          }
-        } else {
-          setNeedsManualPayment(true);
-        }
+      if (form.paymentMethod === "online") {
+        goToPayment(paymentTab, () => setNeedsManualPayment(true));
       }
 
       setForm(EMPTY_FORM);
     } catch (error) {
       console.error(error);
       setStatus("error");
-      if (paymentWindow && !paymentWindow.closed) {
-        paymentWindow.close();
-      }
+      closePaymentTab(paymentTab);
     } finally {
       setIsSubmitting(false);
     }
@@ -279,51 +248,37 @@ export default function OrderForm() {
       </form>
 
       {orderMeta ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-accent-deep/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border border-line bg-white p-6 shadow-[0_30px_60px_-30px_rgba(14,74,46,0.6)] sm:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-accent">
-                  Замовлення збережено
-                </p>
-                <h4 className="font-display text-3xl text-accent-deep">
-                  Дякуємо за замовлення!
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOrderMeta(null)}
-                className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:text-accent"
-              >
-                Закрити
-              </button>
-            </div>
-            <div className="mt-6 space-y-4 text-sm text-muted">
-              <p>{IS_PREORDER ? PREORDER_SUCCESS_TEXT : ORDER_SUCCESS_TEXT}</p>
-              {orderMeta.paymentMethod === "online" ? (
-                <p className="font-semibold text-red">
-                  Не забудьте виконати оплату замовлення.
-                </p>
-              ) : null}
-              <div className="rounded-xl border border-line bg-surface px-4 py-3 text-foreground">
-                Номер замовлення:{" "}
-                <span className="font-semibold text-accent-deep">
-                  {orderMeta.orderId}
-                </span>
-              </div>
-            </div>
-            {orderMeta.paymentMethod === "online" && needsManualPayment ? (
-              <a
-                href={BOOK.paymentUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-hover"
-              >
-                Відкрити оплату
-              </a>
+        <Modal
+          eyebrow="Замовлення збережено"
+          title="Дякуємо за замовлення!"
+          onClose={() => setOrderMeta(null)}
+          size="lg"
+        >
+          <div className="mt-6 space-y-4 text-sm text-muted">
+            <p>{IS_PREORDER ? PREORDER_SUCCESS_TEXT : ORDER_SUCCESS_TEXT}</p>
+            {orderMeta.paymentMethod === "online" ? (
+              <p className="font-semibold text-red">
+                Не забудьте виконати оплату замовлення.
+              </p>
             ) : null}
+            <div className="rounded-xl border border-line bg-surface px-4 py-3 text-foreground">
+              Номер замовлення:{" "}
+              <span className="font-semibold text-accent-deep">
+                {orderMeta.orderId}
+              </span>
+            </div>
           </div>
-        </div>
+          {orderMeta.paymentMethod === "online" && needsManualPayment ? (
+            <a
+              href={BOOK.paymentUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-hover"
+            >
+              Відкрити оплату
+            </a>
+          ) : null}
+        </Modal>
       ) : null}
     </div>
   );

@@ -34,7 +34,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <SiteHeader variant="page" />
+      <SiteHeader variant="page" current="/gallery" />
       <main className="flex min-h-0 flex-1 flex-col">
         <h1 className="sr-only">
           {TITLE} — {BOOK.title}

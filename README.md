@@ -26,8 +26,8 @@ npm run build
 | Текст «Про книгу» (4–7 абзаців) | `ABOUT.paragraphs` |
 | Варіант замовлення та ціна | `VARIANTS` — зараз один варіант «Книга», ціна-заглушка «000 грн» |
 | Посилання автора | `CONTENT_BLOCK.links` — порожні не рендеряться |
-| Відгуки | `REVIEWS` — порожній масив ховає секцію «Відгуки» |
-| Посилання «Читати більше відгуків» | `REVIEWS_LINK` — порожнє ховає кнопку |
+| Відгуки | `REVIEWS` — зараз **згенеровані заглушки**, замінити реальними. На лендінгу — `REVIEWS_PREVIEW_COUNT` випадкових, на `/reviews` — усі |
+| Тексти «Подарунок бібліотеці» | `GIFT` |
 | Обкладинка | `public/cover.png` — зараз там плейсхолдер |
 | Домен і посилання на оплату | змінні оточення (нижче) |
 
@@ -49,6 +49,11 @@ npm run build
 Налаштування Google Sheets / Telegram / Resend — розділ 5 специфікації.
 Колонки таблиці: `Час | № замовлення | Варіант | Спосіб оплати | ПІБ | Телефон | Контакт | Місто | Відділення`.
 
+Подарунки бібліотекам пишуться в **окремий аркуш** тієї ж таблиці (`GOOGLE_SHEETS_GIFTS_SHEET_NAME`, за замовчуванням `Gifts` — аркуш треба створити заздалегідь).
+Колонки: `Час | № подарунка | Примірників | Платник | Контакт | Бібліотека`.
+
+Відгуки, надіслані через «Залишити відгук», приходять у Telegram (і на пошту, якщо вона налаштована). На сайт самі не потрапляють — їх додають руками в `REVIEWS`.
+
 ## Деплой
 
 1. Запушити репозиторій у GitHub.
@@ -62,15 +67,25 @@ npm run build
 ```
 app/
   layout.tsx           шрифти, метадані, SEO/OG, Analytics
-  page.tsx             уся верстка (server component)
+  page.tsx             лендінг (server component)
+  reviews/page.tsx     усі відгуки
+  gallery/page.tsx     фотогалерея «до/після»
   globals.css          Tailwind + CSS-змінні світлої теми
   api/order/route.ts   замовлення → Google Sheets + Telegram + Email
   api/question/route.ts питання → Telegram + Email
+  api/gift/route.ts    подарунок бібліотеці → Google Sheets (аркуш Gifts) + Telegram + Email
+  api/review/route.ts  відгук → Telegram + Email
 components/
   OrderForm.tsx        форма замовлення + модалка успіху
+  GiftForm.tsx         форма «Подарунок бібліотеці» (без доставки, лише онлайн-оплата)
   QuestionModal.tsx    модалка «Задати питання» (honeypot + кулдаун 60 с)
+  ReviewModal.tsx      модалка «Залишити відгук» (honeypot + кулдаун 60 с)
+  ReviewsPreview.tsx   випадкові відгуки на лендінгу
+  Modal.tsx            спільна оболонка модальних вікон
   Ornament.tsx         стрічка з листя барвінку (шапка й футер)
 config/book.ts         ЄДИНЕ ДЖЕРЕЛО ПРАВДИ: контент, варіанти, ціни, посилання
+lib/notify.ts          канали сповіщень: Telegram, Email, Google Sheets
+lib/payment.ts         перехід на оплату (замовлення й подарунок)
 lib/escape.ts          екранування даних для HTML-листів
 public/cover.png       обкладинка
 ```

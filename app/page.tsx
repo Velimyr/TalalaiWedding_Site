@@ -1,7 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
+import GiftForm from "@/components/GiftForm";
 import LeafVine from "@/components/LeafVine";
 import OrderForm from "@/components/OrderForm";
 import QuestionModal from "@/components/QuestionModal";
+import ReviewModal from "@/components/ReviewModal";
+import ReviewsPreview from "@/components/ReviewsPreview";
+import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import {
   ABOUT,
@@ -9,7 +14,7 @@ import {
   CONTENT_BLOCK,
   QUESTION_BLOCK,
   REVIEWS,
-  REVIEWS_LINK,
+  REVIEWS_PREVIEW_COUNT,
 } from "@/config/book";
 
 export default function Home() {
@@ -42,10 +47,17 @@ export default function Home() {
               <p className="max-w-xl text-lg leading-relaxed text-muted">
                 {BOOK.shortDescription}
               </p>
-              <div className="flex flex-wrap items-center justify-end gap-4">
+              {/* На телефоні кнопки стоять стовпчиком, головна — зверху. */}
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
+                <a
+                  href="#gift"
+                  className="rounded-xl border border-accent/30 bg-white/70 px-6 py-4 text-center text-base font-semibold text-accent-deep transition hover:border-accent/60"
+                >
+                  Подарувати бібліотеці
+                </a>
                 <a
                   href="#order"
-                  className="rounded-xl bg-accent px-8 py-4 text-base font-semibold text-white shadow-[0_16px_30px_-16px_rgba(20,108,67,0.9)] transition hover:bg-accent-hover"
+                  className="rounded-xl bg-accent px-8 py-4 text-center text-base font-semibold text-white shadow-[0_16px_30px_-16px_rgba(20,108,67,0.9)] transition hover:bg-accent-hover"
                 >
                   Замовити книгу
                 </a>
@@ -103,47 +115,47 @@ export default function Home() {
           </div>
         </section>
 
-        {REVIEWS.length > 0 ? (
-          <section id="reviews" className="border-b border-line bg-surface">
-            <div className="mx-auto w-full max-w-5xl px-6 py-16">
-              <div className="space-y-2">
-                <p className="text-sm uppercase tracking-[0.22em] text-accent">
-                  Відгуки
-                </p>
-                <h2 className="font-display text-4xl text-accent-deep">
-                  Враження читачів
-                </h2>
-              </div>
-              <div className="mt-8 grid gap-5 md:grid-cols-3">
-                {REVIEWS.map((review) => (
-                  <article
-                    key={review.quote}
-                    className="flex h-full flex-col rounded-2xl border border-line bg-white p-6 shadow-[0_16px_36px_-30px_rgba(14,74,46,0.8)]"
-                  >
-                    <p className="text-sm leading-relaxed text-muted">
-                      {review.quote}
-                    </p>
-                    <p className="mt-auto pt-5 font-display text-lg text-accent-deep">
-                      {review.author}
-                    </p>
-                  </article>
-                ))}
-              </div>
-              {REVIEWS_LINK ? (
-                <div className="mt-8 flex justify-center">
-                  <a
-                    href={REVIEWS_LINK}
-                    className="rounded-xl border border-blue/30 bg-blue-soft px-6 py-3 text-sm font-semibold text-blue transition hover:border-blue/60"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Читати більше відгуків
-                  </a>
-                </div>
-              ) : null}
+        <section id="gift" className="border-b border-line bg-surface">
+          <div className="mx-auto w-full max-w-3xl px-6 py-16">
+            <GiftForm />
+          </div>
+        </section>
+
+        <section id="reviews" className="border-b border-line">
+          <div className="mx-auto w-full max-w-5xl px-6 py-16">
+            <div className="space-y-2">
+              <p className="text-sm uppercase tracking-[0.22em] text-accent">
+                Відгуки
+              </p>
+              <h2 className="font-display text-4xl text-accent-deep">
+                Враження читачів
+              </h2>
             </div>
-          </section>
-        ) : null}
+            {REVIEWS.length > 0 ? (
+              <div className="mt-8">
+                <ReviewsPreview
+                  reviews={REVIEWS}
+                  count={REVIEWS_PREVIEW_COUNT}
+                />
+              </div>
+            ) : (
+              <p className="mt-6 text-base text-muted">
+                Відгуків поки немає — будьте першим.
+              </p>
+            )}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              {REVIEWS.length > REVIEWS_PREVIEW_COUNT ? (
+                <Link
+                  href="/reviews"
+                  className="rounded-xl border border-blue/30 bg-blue-soft px-6 py-3 text-sm font-semibold text-blue transition hover:border-blue/60"
+                >
+                  Усі відгуки ({REVIEWS.length})
+                </Link>
+              ) : null}
+              <ReviewModal />
+            </div>
+          </div>
+        </section>
 
         <section id="links">
           <div className="mx-auto w-full max-w-5xl px-6 py-16">
@@ -189,13 +201,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-line bg-surface">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-3 px-6 py-6 text-xs text-muted">
-          <span>
-            © {new Date().getFullYear()} {BOOK.title}
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

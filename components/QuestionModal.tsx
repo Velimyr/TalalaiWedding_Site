@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Modal from "@/components/Modal";
 
 const COOLDOWN_SECONDS = 60;
 
@@ -66,101 +67,85 @@ export default function QuestionModal() {
       </button>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-accent-deep/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl border border-line bg-white p-6 shadow-[0_30px_60px_-30px_rgba(14,74,46,0.6)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-accent">
-                  Запитання
-                </p>
-                <h4 className="font-display text-3xl text-accent-deep">
-                  Задати питання
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg px-2 py-1 text-sm font-medium text-muted transition hover:text-accent"
-              >
-                Закрити
-              </button>
-            </div>
-
-            <form onSubmit={submitQuestion} className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-sm font-medium">
-                Імʼя
-                <input
-                  className={fieldClass}
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                  required
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-medium">
-                Як з вами звʼязатися
-                <input
-                  className={fieldClass}
-                  value={form.contact}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, contact: event.target.value }))
-                  }
-                  placeholder="Telegram / Facebook / Телефон"
-                  required
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-medium">
-                Суть питання
-                <textarea
-                  className="min-h-[120px] rounded-lg border border-line bg-white px-3 py-2 text-foreground transition focus:border-accent"
-                  value={form.question}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      question: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </label>
-
+        <Modal
+          eyebrow="Запитання"
+          title="Задати питання"
+          onClose={() => setIsOpen(false)}
+        >
+          <form onSubmit={submitQuestion} className="mt-6 grid gap-4">
+            <label className="grid gap-2 text-sm font-medium">
+              Імʼя
               <input
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-                className="hidden"
-                value={form.website}
+                className={fieldClass}
+                value={form.name}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, website: event.target.value }))
+                  setForm((prev) => ({ ...prev, name: event.target.value }))
                 }
+                required
               />
+            </label>
 
-              <button
-                type="submit"
-                disabled={cooldown > 0}
-                className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {cooldown > 0
-                  ? `Можна відправити через ${cooldown} с`
-                  : "Надіслати питання"}
-              </button>
+            <label className="grid gap-2 text-sm font-medium">
+              Як з вами звʼязатися
+              <input
+                className={fieldClass}
+                value={form.contact}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, contact: event.target.value }))
+                }
+                placeholder="Telegram / Facebook / Телефон"
+                required
+              />
+            </label>
 
-              {status === "success" ? (
-                <p className="text-sm font-medium text-accent">
-                  Дякуємо! Ми отримали ваше питання і відповімо якнайшвидше.
-                </p>
-              ) : null}
-              {status === "error" ? (
-                <p className="text-sm font-medium text-red">
-                  Не вдалося надіслати питання. Спробуйте ще раз.
-                </p>
-              ) : null}
-            </form>
-          </div>
-        </div>
+            <label className="grid gap-2 text-sm font-medium">
+              Суть питання
+              <textarea
+                className="min-h-[120px] rounded-lg border border-line bg-white px-3 py-2 text-foreground transition focus:border-accent"
+                value={form.question}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    question: event.target.value,
+                  }))
+                }
+                required
+              />
+            </label>
+
+            <input
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              className="hidden"
+              value={form.website}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, website: event.target.value }))
+              }
+            />
+
+            <button
+              type="submit"
+              disabled={cooldown > 0}
+              className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cooldown > 0
+                ? `Можна відправити через ${cooldown} с`
+                : "Надіслати питання"}
+            </button>
+
+            {status === "success" ? (
+              <p className="text-sm font-medium text-accent">
+                Дякуємо! Ми отримали ваше питання і відповімо якнайшвидше.
+              </p>
+            ) : null}
+            {status === "error" ? (
+              <p className="text-sm font-medium text-red">
+                Не вдалося надіслати питання. Спробуйте ще раз.
+              </p>
+            ) : null}
+          </form>
+        </Modal>
       ) : null}
     </>
   );

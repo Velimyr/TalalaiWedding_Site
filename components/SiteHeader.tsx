@@ -1,16 +1,21 @@
 import Link from "next/link";
-import { BOOK, REVIEWS } from "@/config/book";
+import { BOOK } from "@/config/book";
 
 /**
  * Спільна шапка лендінгу й окремих сторінок.
  *
  * На лендінгу пункти меню — якорі поточної сторінки, на окремій сторінці
- * (галерея) ті самі пункти мусять вести на головну: `/#about`.
+ * (галерея, відгуки) ті самі пункти мусять вести на головну: `/#about`.
+ * «Відгуки» поза лендінгом ведуть одразу на повний список — /reviews.
+ *
+ * current — шлях окремої сторінки, на якій ми зараз: її пункт підсвічується.
  */
 export default function SiteHeader({
   variant = "home",
+  current,
 }: {
   variant?: "home" | "page";
+  current?: "/gallery" | "/reviews";
 }) {
   const isHome = variant === "home";
   const anchor = (id: string) => (isHome ? `#${id}` : `/#${id}`);
@@ -18,7 +23,7 @@ export default function SiteHeader({
   const navItems = [
     { href: anchor("about"), label: "Про книгу" },
     { href: anchor("order"), label: "Замовити" },
-    ...(REVIEWS.length > 0 ? [{ href: anchor("reviews"), label: "Відгуки" }] : []),
+    { href: isHome ? "#reviews" : "/reviews", label: "Відгуки" },
     { href: anchor("links"), label: "Посилання" },
     { href: "/gallery", label: "Фотогалерея" },
   ];
@@ -42,7 +47,7 @@ export default function SiteHeader({
         )}
         <nav className="hidden items-center gap-8 text-base text-muted md:flex">
           {navItems.map((item) => {
-            const isCurrent = !isHome && item.href === "/gallery";
+            const isCurrent = !isHome && item.href === current;
             return (
               <Link
                 key={item.href}

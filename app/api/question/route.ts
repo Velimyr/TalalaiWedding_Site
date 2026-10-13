@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { BOOK } from "@/config/book";
-import { escapeHtml } from "@/lib/escape";
+import { nowTimestamp, runChannel, sendEmail, sendTelegram } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
@@ -17,108 +17,13 @@ const REQUIRED_FIELDS: Array<keyof QuestionPayload> = [
   "question",
 ];
 
-const nowTimestamp = () =>
-  new Date().toLocaleString("uk-UA", { timeZone: "Europe/Kiev" });
-
-const getEnv = (key: string) => process.env[key];
-
-const runChannel = (name: string, run: () => Promise<boolean>) =>
-  run().catch((error) => {
-    console.error(`[${name}] канал впав:`, error);
-    return false;
-  });
-
-const questionRows = (payload: QuestionPayload) => [
-  ["Імʼя", payload.name],
-  ["Контакт", payload.contact],
-  ["Питання", payload.question],
-  ["Час", nowTimestamp()],
-];
-
-async function sendTelegram(payload: QuestionPayload) {
-  const token = getEnv("TELEGRAM_BOT_TOKEN");
-  const chatId = getEnv("TELEGRAM_CHAT_ID");
-
-  if (!token || !chatId) {
-    console.warn(
-      "[telegram] пропущено: не задані TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID",
-    );
-    return false;
-  }
-
-  const text = [
-    `Нове питання щодо замовлення «${BOOK.title}»`,
-    ...questionRows(payload).map(([label, value]) => `${label}: ${value}`),
-  ].join("\n");
-
-  const response = await fetch(
-    `https://api.telegram.org/bot${token}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    },
-  );
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    console.error(
-      `[telegram] API відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
-    );
-    return false;
-  }
-
-  return true;
-}
-
-async function sendEmail(payload: QuestionPayload) {
-  const apiKey = getEnv("RESEND_API_KEY");
-  const from = getEnv("RESEND_FROM_EMAIL");
-  const to = getEnv("RESEND_TO_EMAIL");
-
-  if (!apiKey || !from || !to) {
-    console.warn(
-      "[email] пропущено: не задані RESEND_API_KEY / RESEND_FROM_EMAIL / RESEND_TO_EMAIL",
-    );
-    return false;
-  }
-
-  const html = `
-    <h2>Нове питання щодо замовлення «${escapeHtml(BOOK.title)}»</h2>
-    <ul>
-      ${questionRows(payload)
-        .map(
-          ([label, value]) =>
-            `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`,
-        )
-        .join("\n      ")}
-    </ul>
-  `;
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to,
-      subject: `Питання щодо замовлення книги «${BOOK.title}»`,
-      html,
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    console.error(
-      `[email] Resend відмовив: HTTP ${response.status} ${body.slice(0, 400)}`,
-    );
-    return false;
-  }
-
-  return true;
-}
+const questionRows = (payload: QuestionPayload) =>
+  [
+    ["Імʼя", payload.name],
+    ["Контакт", payload.contact],
+    ["Питання", payload.question],
+    ["Час", nowTimestamp()],
+  ] as const;
 
 export async function POST(request: Request) {
   try {
@@ -138,11 +43,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const normalized = payload as QuestionPayload;
+    const rows = questionRows(payload as QuestionPayload);
 
     const [telegramOk, emailOk] = await Promise.all([
-      runChannel("telegram", () => sendTelegram(normalized)),
-      runChannel("email", () => sendEmail(normalized)),
+      runChannel("telegram", () =>
+        sendTelegram(`Нове питання щодо замовлення «${BOOK.title}»`, rows),
+      ),
+      runChannel("email", () =>
+        sendEmail(
+          `Питання щодо замовлення книги «${BOOK.title}»`,
+          `Нове питання щодо замовлення «${BOOK.title}»`,
+          rows,
+        ),
+      ),
     ]);
 
     return NextResponse.json({
