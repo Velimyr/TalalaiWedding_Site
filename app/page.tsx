@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import GiftForm from "@/components/GiftForm";
 import LeafVine from "@/components/LeafVine";
 import OrderForm from "@/components/OrderForm";
 import QuestionModal from "@/components/QuestionModal";
@@ -115,13 +114,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="gift" className="border-b border-line bg-surface">
-          <div className="mx-auto w-full max-w-3xl px-6 py-16">
-            <GiftForm />
-          </div>
-        </section>
-
-        <section id="reviews" className="border-b border-line">
+        <section id="reviews" className="border-b border-line bg-surface">
           <div className="mx-auto w-full max-w-5xl px-6 py-16">
             <div className="space-y-2">
               <p className="text-sm uppercase tracking-[0.22em] text-accent">

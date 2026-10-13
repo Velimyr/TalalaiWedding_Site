@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import {
   BOOK,
+  GIFT_LIMITS,
   PAYMENT_METHODS,
   paymentLabelById,
   variantById,
@@ -10,15 +11,19 @@ import {
 } from "@/config/book";
 import {
   appendSheetRow,
+  cleanText,
   nowTimestamp,
   runChannel,
   sendEmail,
   sendTelegram,
+  type NotifyRow,
 } from "@/lib/notify";
 
 export const runtime = "nodejs";
 
-type OrderPayload = {
+/** Звичайне замовлення: книга їде покупцю. */
+type SelfOrder = {
+  kind: "self";
   variant: VariantId;
   contact: string;
   city: string;
@@ -28,80 +33,170 @@ type OrderPayload = {
   paymentMethod: PaymentMethodId;
 };
 
-const REQUIRED_FIELDS: Array<keyof OrderPayload> = [
-  "variant",
+/** Подарунок бібліотеці: без доставки, оплата лише онлайн. */
+type GiftOrder = {
+  kind: "gift";
+  variant: VariantId;
+  contact: string;
+  fullName: string;
+  quantity: number;
+  library: string;
+  paymentMethod: "online";
+};
+
+type Order = SelfOrder | GiftOrder;
+
+const SELF_REQUIRED_FIELDS = [
   "contact",
   "city",
   "office",
   "phone",
   "fullName",
-  "paymentMethod",
-];
+] as const;
 
-const orderRows = (payload: OrderPayload) =>
-  [
-    ["Варіант", variantById(payload.variant)?.label ?? payload.variant],
-    ["Оплата", paymentLabelById(payload.paymentMethod) ?? payload.paymentMethod],
-    ["ПІБ", payload.fullName],
-    ["Телефон", payload.phone],
-    ["Контакт", payload.contact],
-    ["Місто", payload.city],
-    [`Відділення ${BOOK.deliveryService}`, payload.office],
-    ["Час", nowTimestamp()],
-  ] as const;
+const GIFT_REQUIRED_FIELDS = ["contact", "fullName"] as const;
 
-/** Колонки: Час | № замовлення | Варіант | Спосіб оплати | ПІБ | Телефон | Контакт | Місто | Відділення */
-const sheetRow = (orderId: string, payload: OrderPayload) => [
-  nowTimestamp(),
-  orderId,
-  variantById(payload.variant)?.label ?? payload.variant,
-  paymentLabelById(payload.paymentMethod) ?? payload.paymentMethod,
-  payload.fullName,
-  payload.phone,
-  payload.contact,
-  payload.city,
-  payload.office,
-];
+const LIBRARY_NOT_SET = "Не вказано — обрати самостійно";
+
+const badRequest = (field: string) =>
+  NextResponse.json({ error: `Missing field: ${field}` }, { status: 400 });
+
+/**
+ * Розбирає тіло запиту в замовлення потрібного типу або повертає назву
+ * першого некоректного поля. Запити без kind — від старої версії форми —
+ * вважаються звичайним замовленням.
+ */
+function parseOrder(payload: Record<string, unknown>): Order | string {
+  const variant = cleanText(payload.variant);
+  if (!variantById(variant)) return "variant";
+
+  if (payload.kind === "gift") {
+    for (const field of GIFT_REQUIRED_FIELDS) {
+      if (!cleanText(payload[field])) return field;
+    }
+    const quantity = Number(payload.quantity);
+    if (
+      !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > GIFT_LIMITS.quantity
+    ) {
+      return "quantity";
+    }
+    const library = cleanText(payload.library);
+    if (library.length > GIFT_LIMITS.library) return "library";
+
+    return {
+      kind: "gift",
+      variant: variant as VariantId,
+      contact: cleanText(payload.contact),
+      fullName: cleanText(payload.fullName),
+      quantity,
+      library,
+      paymentMethod: "online",
+    };
+  }
+
+  for (const field of SELF_REQUIRED_FIELDS) {
+    if (!cleanText(payload[field])) return field;
+  }
+  const paymentMethod = cleanText(payload.paymentMethod);
+  if (!PAYMENT_METHODS.some((method) => method.id === paymentMethod)) {
+    return "paymentMethod";
+  }
+
+  return {
+    kind: "self",
+    variant: variant as VariantId,
+    contact: cleanText(payload.contact),
+    city: cleanText(payload.city),
+    office: cleanText(payload.office),
+    phone: cleanText(payload.phone),
+    fullName: cleanText(payload.fullName),
+    paymentMethod: paymentMethod as PaymentMethodId,
+  };
+}
+
+const variantLabel = (order: Order) =>
+  variantById(order.variant)?.label ?? order.variant;
+
+const orderRows = (order: Order): NotifyRow[] =>
+  order.kind === "gift"
+    ? [
+        ["Тип", "Подарунок бібліотеці"],
+        ["Варіант", variantLabel(order)],
+        ["Примірників", String(order.quantity)],
+        ["Оплата", paymentLabelById(order.paymentMethod) ?? order.paymentMethod],
+        ["Платник", order.fullName],
+        ["Контакт", order.contact],
+        ["Бібліотека", order.library || LIBRARY_NOT_SET],
+        ["Час", nowTimestamp()],
+      ]
+    : [
+        ["Варіант", variantLabel(order)],
+        ["Оплата", paymentLabelById(order.paymentMethod) ?? order.paymentMethod],
+        ["ПІБ", order.fullName],
+        ["Телефон", order.phone],
+        ["Контакт", order.contact],
+        ["Місто", order.city],
+        [`Відділення ${BOOK.deliveryService}`, order.office],
+        ["Час", nowTimestamp()],
+      ];
+
+/**
+ * Колонки: Час | № замовлення | Варіант | Спосіб оплати | ПІБ | Телефон |
+ * Контакт | Місто | Відділення | Бібліотека
+ *
+ * Подарунок іде в той самий аркуш: у «Варіанті» — позначка й кількість,
+ * доставка порожня, а бібліотека — в останній колонці, якої в звичайних
+ * замовлень немає (тому старі рядки таблиці лишаються коректними).
+ */
+const sheetRow = (orderId: string, order: Order) =>
+  order.kind === "gift"
+    ? [
+        nowTimestamp(),
+        orderId,
+        `🎁 Подарунок бібліотеці: ${variantLabel(order)} × ${order.quantity}`,
+        paymentLabelById(order.paymentMethod) ?? order.paymentMethod,
+        order.fullName,
+        "",
+        order.contact,
+        "",
+        "",
+        order.library || LIBRARY_NOT_SET,
+      ]
+    : [
+        nowTimestamp(),
+        orderId,
+        variantLabel(order),
+        paymentLabelById(order.paymentMethod) ?? order.paymentMethod,
+        order.fullName,
+        order.phone,
+        order.contact,
+        order.city,
+        order.office,
+      ];
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as Partial<OrderPayload>;
+    const payload = (await request.json()) as Record<string, unknown>;
+    const order = parseOrder(payload);
 
-    for (const field of REQUIRED_FIELDS) {
-      if (!payload[field]) {
-        return NextResponse.json(
-          { error: `Missing field: ${field}` },
-          { status: 400 },
-        );
-      }
-    }
-
-    if (!variantById(payload.variant as string)) {
-      return NextResponse.json(
-        { error: "Missing field: variant" },
-        { status: 400 },
-      );
-    }
-
-    if (
-      !PAYMENT_METHODS.some((method) => method.id === payload.paymentMethod)
-    ) {
-      return NextResponse.json(
-        { error: "Missing field: paymentMethod" },
-        { status: 400 },
-      );
+    if (typeof order === "string") {
+      return badRequest(order);
     }
 
     const orderId = crypto.randomBytes(4).toString("hex").toUpperCase();
-    const normalized = payload as OrderPayload;
-    const heading = `Нове замовлення «${BOOK.title}» #${orderId}`;
-    const rows = orderRows(normalized);
+    const heading =
+      order.kind === "gift"
+        ? `🎁 Подарунок бібліотеці «${BOOK.title}» #${orderId}`
+        : `Нове замовлення «${BOOK.title}» #${orderId}`;
+    const rows = orderRows(order);
 
     const [sheetOk, telegramOk, emailOk] = await Promise.all([
       runChannel("google-sheets", () =>
         appendSheetRow(
           process.env.GOOGLE_SHEETS_SHEET_NAME ?? "Orders",
-          sheetRow(orderId, normalized),
+          sheetRow(orderId, order),
         ),
       ),
       runChannel("telegram", () => sendTelegram(heading, rows)),

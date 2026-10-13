@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import {
   BOOK,
+  GIFT,
+  GIFT_LIMITS,
+  HAS_PAYMENT_URL,
   IS_PREORDER,
+  ORDER_KINDS,
   ORDER_SUCCESS_TEXT,
   PAYMENT_METHODS,
   PREORDER_SUCCESS_TEXT,
@@ -12,6 +16,7 @@ import {
   VARIANTS,
   variantById,
   variantOptionLabel,
+  type OrderKind,
   type PaymentMethodId,
   type VariantId,
 } from "@/config/book";
@@ -20,7 +25,8 @@ import { closePaymentTab, goToPayment, openPaymentTab } from "@/lib/payment";
 /** Порожній рядок — покупець ще не обрав спосіб оплати. */
 type PaymentSelection = PaymentMethodId | "";
 
-type OrderPayload = {
+type OrderForm = {
+  kind: OrderKind;
   variant: VariantId;
   contact: string;
   city: string;
@@ -28,9 +34,13 @@ type OrderPayload = {
   phone: string;
   fullName: string;
   paymentMethod: PaymentSelection;
+  /** Лише для подарунка бібліотеці. */
+  quantity: string;
+  library: string;
 };
 
-const EMPTY_FORM: OrderPayload = {
+const EMPTY_FORM: OrderForm = {
+  kind: "self",
   variant: VARIANTS[0].id,
   contact: "",
   city: "",
@@ -38,28 +48,85 @@ const EMPTY_FORM: OrderPayload = {
   phone: "",
   fullName: "",
   paymentMethod: "",
+  quantity: "1",
+  library: "",
 };
+
+/** Якір /#gift відкриває форму одразу в режимі подарунка (кнопка в hero). */
+const GIFT_HASH = "#gift";
 
 const fieldClass =
   "h-11 rounded-lg border border-line bg-white px-3 text-foreground transition focus:border-accent";
+
+/**
+ * Подарунок оплачується лише онлайн і без доставки, тому на сервер іде
+ * тільки те, що стосується обраного режиму: поля доставки, які покупець
+ * міг заповнити до перемикання, у подарунок не потрапляють.
+ */
+const toPayload = (form: OrderForm) =>
+  form.kind === "gift"
+    ? {
+        kind: form.kind,
+        variant: form.variant,
+        fullName: form.fullName,
+        contact: form.contact,
+        quantity: Number(form.quantity),
+        library: form.library,
+        paymentMethod: "online",
+      }
+    : {
+        kind: form.kind,
+        variant: form.variant,
+        fullName: form.fullName,
+        contact: form.contact,
+        phone: form.phone,
+        city: form.city,
+        office: form.office,
+        paymentMethod: form.paymentMethod,
+      };
 
 export default function OrderForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [orderMeta, setOrderMeta] = useState<{
     orderId: string;
-    paymentMethod: PaymentSelection;
+    kind: OrderKind;
+    isOnline: boolean;
   } | null>(null);
   const [needsManualPayment, setNeedsManualPayment] = useState(false);
-  const [form, setForm] = useState<OrderPayload>(EMPTY_FORM);
+  const [form, setForm] = useState<OrderForm>(EMPTY_FORM);
+
+  const isGift = form.kind === "gift";
+  const isOnline = isGift || form.paymentMethod === "online";
 
   const price = useMemo(
     () => variantById(form.variant)?.price ?? 0,
     [form.variant],
   );
 
+  // /#gift — і при заході за посиланням, і при натиску кнопки в hero.
+  useEffect(() => {
+    const syncWithHash = () => {
+      if (window.location.hash === GIFT_HASH) {
+        setForm((prev) => ({ ...prev, kind: "gift" }));
+      }
+    };
+    syncWithHash();
+    window.addEventListener("hashchange", syncWithHash);
+    return () => window.removeEventListener("hashchange", syncWithHash);
+  }, []);
+
+  const setKind = (kind: OrderKind) => {
+    setForm((prev) => ({ ...prev, kind }));
+    // Інакше повторний натиск «Подарувати бібліотеці» в hero не змінив би
+    // хеш — і hashchange не спрацював би.
+    if (kind !== "gift" && window.location.hash === GIFT_HASH) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  };
+
   const onChange =
-    (field: keyof OrderPayload) =>
+    (field: keyof OrderForm) =>
     (
       event: React.ChangeEvent<
         HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -75,14 +142,13 @@ export default function OrderForm() {
     setNeedsManualPayment(false);
 
     // Вкладку оплати відкриваємо синхронно, до будь-якого await.
-    const paymentTab =
-      form.paymentMethod === "online" ? openPaymentTab() : null;
+    const paymentTab = isOnline ? openPaymentTab() : null;
 
     try {
       const response = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(toPayload(form)),
       });
 
       if (!response.ok) {
@@ -93,14 +159,16 @@ export default function OrderForm() {
       setStatus("success");
       setOrderMeta({
         orderId: responseJson.orderId,
-        paymentMethod: form.paymentMethod,
+        kind: form.kind,
+        isOnline,
       });
 
-      if (form.paymentMethod === "online") {
+      if (isOnline) {
         goToPayment(paymentTab, () => setNeedsManualPayment(true));
       }
 
-      setForm(EMPTY_FORM);
+      // Режим лишається тим самим: хто дарував, імовірно, дарує й далі.
+      setForm({ ...EMPTY_FORM, kind: form.kind });
     } catch (error) {
       console.error(error);
       setStatus("error");
@@ -110,8 +178,18 @@ export default function OrderForm() {
     }
   };
 
+  const successText =
+    orderMeta?.kind === "gift"
+      ? GIFT.successText
+      : IS_PREORDER
+        ? PREORDER_SUCCESS_TEXT
+        : ORDER_SUCCESS_TEXT;
+
   return (
-    <div className="rounded-3xl border border-line bg-surface p-6 shadow-[0_18px_40px_-28px_rgba(20,108,67,0.55)] sm:p-8">
+    <div
+      id="gift"
+      className="rounded-3xl border border-line bg-surface p-6 shadow-[0_18px_40px_-28px_rgba(20,108,67,0.55)] sm:p-8"
+    >
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.22em] text-accent">
@@ -123,34 +201,82 @@ export default function OrderForm() {
         </div>
         <div className="rounded-2xl border border-red/25 bg-red-soft px-4 py-2 text-right">
           <p className="text-xs uppercase tracking-[0.22em] text-muted">
-            Вартість
+            {isGift ? "За примірник" : "Вартість"}
           </p>
           <p className="text-xl font-semibold text-red">{price} грн</p>
         </div>
       </div>
 
+      <div
+        role="radiogroup"
+        aria-label="Для кого замовлення"
+        className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-line bg-white p-1"
+      >
+        {ORDER_KINDS.map((kind) => {
+          const isActive = form.kind === kind.id;
+          return (
+            <button
+              key={kind.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => setKind(kind.id)}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                isActive
+                  ? "bg-accent text-white shadow-sm"
+                  : "text-muted hover:text-accent-deep"
+              }`}
+            >
+              {kind.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {isGift ? (
+        <p className="mb-6 text-base leading-relaxed text-muted">{GIFT.text}</p>
+      ) : null}
+
       {IS_PREORDER ? (
         <div className="mb-6 rounded-xl border border-blue/30 bg-blue-soft px-4 py-3 text-sm text-blue">
-          {PREORDER_TEXT}
+          {isGift ? GIFT.preorderNote : PREORDER_TEXT}
         </div>
       ) : null}
 
       <form onSubmit={submit} className="grid gap-4">
-        <label className="grid gap-2 text-sm font-medium">
-          Варіант замовлення
-          <select
-            className={fieldClass}
-            value={form.variant}
-            onChange={onChange("variant")}
-            required
-          >
-            {VARIANTS.map((variant) => (
-              <option key={variant.id} value={variant.id}>
-                {variantOptionLabel(variant)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className={isGift ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
+          <label className="grid gap-2 text-sm font-medium">
+            Варіант замовлення
+            <select
+              className={fieldClass}
+              value={form.variant}
+              onChange={onChange("variant")}
+              required
+            >
+              {VARIANTS.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variantOptionLabel(variant)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isGift ? (
+            <label className="grid gap-2 text-sm font-medium">
+              Кількість примірників
+              <input
+                className={fieldClass}
+                value={form.quantity}
+                onChange={onChange("quantity")}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={GIFT_LIMITS.quantity}
+                step={1}
+                required
+              />
+            </label>
+          ) : null}
+        </div>
 
         <label className="grid gap-2 text-sm font-medium">
           Контакт для звʼязку
@@ -163,70 +289,108 @@ export default function OrderForm() {
           />
         </label>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-medium">
-            ПІБ отримувача
-            <input
-              className={fieldClass}
-              value={form.fullName}
-              onChange={onChange("fullName")}
-              required
-            />
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            Номер телефону
-            <input
-              className={fieldClass}
-              value={form.phone}
-              onChange={onChange("phone")}
-              type="tel"
-              pattern="^(\+?380|0)\d{9}$"
-              title="Формат: +380XXXXXXXXX або 0XXXXXXXXX"
-              placeholder="+380XXXXXXXXX"
-              required
-            />
-          </label>
-        </div>
+        {isGift ? (
+          <>
+            <label className="grid gap-2 text-sm font-medium">
+              Ваше імʼя
+              <input
+                className={fieldClass}
+                value={form.fullName}
+                onChange={onChange("fullName")}
+                autoComplete="name"
+                required
+              />
+            </label>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-medium">
-            Місто / Село
-            <input
-              className={fieldClass}
-              value={form.city}
-              onChange={onChange("city")}
-              required
-            />
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            {BOOK.deliveryOfficeLabel}
-            <input
-              className={fieldClass}
-              value={form.office}
-              onChange={onChange("office")}
-              required
-            />
-          </label>
-        </div>
+            <label className="grid gap-2 text-sm font-medium">
+              <span>
+                Якій бібліотеці передати{" "}
+                <span className="font-normal text-muted">(необовʼязково)</span>
+              </span>
+              <textarea
+                className="min-h-[110px] rounded-lg border border-line bg-white px-3 py-2 text-foreground transition focus:border-accent"
+                value={form.library}
+                maxLength={GIFT_LIMITS.library}
+                onChange={onChange("library")}
+                placeholder="Напр.: Публічна бібліотека с. …, вул. …, контактна особа — …, тел. …"
+                aria-describedby="gift-library-hint"
+              />
+              <span
+                id="gift-library-hint"
+                className="text-xs font-normal leading-relaxed text-muted"
+              >
+                {GIFT.libraryHint}
+              </span>
+            </label>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-medium">
+                ПІБ отримувача
+                <input
+                  className={fieldClass}
+                  value={form.fullName}
+                  onChange={onChange("fullName")}
+                  required
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-medium">
+                Номер телефону
+                <input
+                  className={fieldClass}
+                  value={form.phone}
+                  onChange={onChange("phone")}
+                  type="tel"
+                  pattern="^(\+?380|0)\d{9}$"
+                  title="Формат: +380XXXXXXXXX або 0XXXXXXXXX"
+                  placeholder="+380XXXXXXXXX"
+                  required
+                />
+              </label>
+            </div>
 
-        <label className="grid gap-2 text-sm font-medium">
-          Спосіб оплати
-          <select
-            className={fieldClass}
-            value={form.paymentMethod}
-            onChange={onChange("paymentMethod")}
-            required
-          >
-            <option value="" disabled>
-              Оберіть спосіб оплати
-            </option>
-            {PAYMENT_METHODS.map((method) => (
-              <option key={method.id} value={method.id}>
-                {method.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-medium">
+                Місто / Село
+                <input
+                  className={fieldClass}
+                  value={form.city}
+                  onChange={onChange("city")}
+                  required
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-medium">
+                {BOOK.deliveryOfficeLabel}
+                <input
+                  className={fieldClass}
+                  value={form.office}
+                  onChange={onChange("office")}
+                  required
+                />
+              </label>
+            </div>
+
+            <label className="grid gap-2 text-sm font-medium">
+              Спосіб оплати
+              <select
+                className={fieldClass}
+                value={form.paymentMethod}
+                onChange={onChange("paymentMethod")}
+                required
+              >
+                <option value="" disabled>
+                  Оберіть спосіб оплати
+                </option>
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method.id} value={method.id}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
 
         <button
           type="submit"
@@ -235,9 +399,13 @@ export default function OrderForm() {
         >
           {isSubmitting
             ? "Надсилаємо..."
-            : form.paymentMethod === "online"
-              ? "Замовити і оплатити"
-              : "Замовити книгу"}
+            : isGift
+              ? HAS_PAYMENT_URL
+                ? "Подарувати і оплатити"
+                : "Подарувати книгу"
+              : form.paymentMethod === "online"
+                ? "Замовити і оплатити"
+                : "Замовити книгу"}
         </button>
 
         {status === "error" ? (
@@ -250,15 +418,21 @@ export default function OrderForm() {
       {orderMeta ? (
         <Modal
           eyebrow="Замовлення збережено"
-          title="Дякуємо за замовлення!"
+          title={
+            orderMeta.kind === "gift"
+              ? "Дякуємо за подарунок!"
+              : "Дякуємо за замовлення!"
+          }
           onClose={() => setOrderMeta(null)}
           size="lg"
         >
           <div className="mt-6 space-y-4 text-sm text-muted">
-            <p>{IS_PREORDER ? PREORDER_SUCCESS_TEXT : ORDER_SUCCESS_TEXT}</p>
-            {orderMeta.paymentMethod === "online" ? (
+            <p>{successText}</p>
+            {orderMeta.isOnline ? (
               <p className="font-semibold text-red">
-                Не забудьте виконати оплату замовлення.
+                {orderMeta.kind === "gift" && !HAS_PAYMENT_URL
+                  ? "Ми звʼяжемося з вами, щоб узгодити оплату."
+                  : "Не забудьте виконати оплату замовлення."}
               </p>
             ) : null}
             <div className="rounded-xl border border-line bg-surface px-4 py-3 text-foreground">
@@ -268,7 +442,7 @@ export default function OrderForm() {
               </span>
             </div>
           </div>
-          {orderMeta.paymentMethod === "online" && needsManualPayment ? (
+          {orderMeta.isOnline && HAS_PAYMENT_URL && needsManualPayment ? (
             <a
               href={BOOK.paymentUrl}
               target="_blank"
