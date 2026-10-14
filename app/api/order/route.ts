@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import {
   BOOK,
+  currentPrice,
   GIFT_LIMITS,
   PAYMENT_METHODS,
   paymentLabelById,
@@ -119,12 +120,23 @@ function parseOrder(payload: Record<string, unknown>): Order | string {
 const variantLabel = (order: Order) =>
   variantById(order.variant)?.label ?? order.variant;
 
+const currentPriceOf = (id: VariantId) => {
+  const variant = variantById(id);
+  return variant ? currentPrice(variant) : 0;
+};
+
+/** Та сама сума, що підставляється в посилання на оплату. */
+const orderAmount = (order: Order) =>
+  currentPriceOf(order.variant) *
+  (order.kind === "gift" ? order.quantity : 1);
+
 const orderRows = (order: Order): NotifyRow[] =>
   order.kind === "gift"
     ? [
         ["Тип", "Подарунок бібліотеці"],
         ["Варіант", variantLabel(order)],
         ["Примірників", String(order.quantity)],
+        ["Сума", `${orderAmount(order)} грн`],
         ["Оплата", paymentLabelById(order.paymentMethod) ?? order.paymentMethod],
         ["Платник", order.fullName],
         ["Контакт", order.contact],
@@ -133,6 +145,7 @@ const orderRows = (order: Order): NotifyRow[] =>
       ]
     : [
         ["Варіант", variantLabel(order)],
+        ["Сума", `${orderAmount(order)} грн`],
         ["Оплата", paymentLabelById(order.paymentMethod) ?? order.paymentMethod],
         ["ПІБ", order.fullName],
         ["Телефон", order.phone],

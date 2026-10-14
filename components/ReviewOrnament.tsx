@@ -1,20 +1,13 @@
 /**
- * Вишиті орнаменти для карток відгуків — мотиви з обкладинки:
- * квітка на стеблі, гілочка барвінку і ромбова смуга, як на рукавах.
+ * Вишиті квіткові орнаменти для карток відгуків — у кольорах обкладинки.
+ * Чотири гілки: рожа, барвінок, мак і волошки.
  *
- * Кожен вид «прив'язаний» до свого краю картки так, щоб не лізти під текст:
- * гілки стеляться вздовж нижнього краю праворуч (там лише коротке імʼя
- * ліворуч), смуги — у полях картки. Картка мусить мати `relative overflow-hidden`: тоді заокруглений
- * кут акуратно обрізає орнамент.
+ * Усі стеляться вздовж нижнього краю праворуч: там лише коротке імʼя
+ * ліворуч, тож під текст вони не лізуть. Картка мусить мати
+ * `relative overflow-hidden`: тоді заокруглений кут акуратно обрізає гілку.
  */
 
-export const ORNAMENT_KINDS = [
-  "flower",
-  "periwinkle",
-  "bandTop",
-  "bandBottom",
-  "bandLeft",
-] as const;
+export const ORNAMENT_KINDS = ["rose", "periwinkle", "poppy", "cornflower"] as const;
 
 export type OrnamentKind = (typeof ORNAMENT_KINDS)[number];
 
@@ -27,6 +20,11 @@ const GREEN_PALE = "#9fd3b2";
 const BLUE = "#1d4ed8";
 const YELLOW = "#f2b705";
 const PERIWINKLE = "#6a7bd8";
+const RED_DARK = "#8f0d17";
+const INK = "#1f1a17";
+const SAGE = "#5f8f6e";
+const BLUE_LIGHT = "#5b84f0";
+const BLUE_DEEP = "#1e2f8f";
 
 /** Скільки карток у ряду на широкому екрані — від цього рахуємо «1–2 в ряду». */
 const ROW_SIZE = 3;
@@ -59,26 +57,6 @@ export function pickOrnaments(count: number, random: () => number = Math.random)
 
   return result;
 }
-
-const svgUrl = (svg: string) =>
-  `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-
-/** Ромб із серединкою, між ромбами — зелені півромби: на стику вони стуляються. */
-const BAND_TILE_H = svgUrl(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10">` +
-    `<path d="M10 0l5 5-5 5-5-5z" fill="${RED}"/>` +
-    `<path d="M10 3l2 2-2 2-2-2z" fill="${YELLOW}"/>` +
-    `<path d="M0 2l3 3-3 3zM20 2l-3 3 3 3z" fill="${GREEN}"/>` +
-    `</svg>`,
-);
-
-const BAND_TILE_V = svgUrl(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20">` +
-    `<path d="M0 10l5-5 5 5-5 5z" fill="${RED}"/>` +
-    `<path d="M3 10l2-2 2 2-2 2z" fill="${YELLOW}"/>` +
-    `<path d="M2 0l3 3 3-3zM2 20l3-3 3 3z" fill="${GREEN}"/>` +
-    `</svg>`,
-);
 
 /** Листок: вузький човник уздовж осі X, від (0,0) до (len,0). */
 const leafPath = (len: number, width: number) =>
@@ -178,7 +156,7 @@ function Blossom({
  * Гілка з вишитою рожею вздовж нижнього краю картки.
  * Рамка 160×80, кут картки — праворуч унизу (160, 80).
  */
-function FlowerSpray() {
+function RoseSpray() {
   return (
     <svg viewBox="0 0 160 80" className="h-full w-full">
       <g fill="none" stroke={GREEN} strokeLinecap="round" strokeWidth="1.8">
@@ -255,40 +233,147 @@ function PeriwinkleVine() {
   );
 }
 
-export default function ReviewOrnament({ kind }: { kind: OrnamentKind }) {
-  // З'являється плавно: на сторінці орнаменти розставляються вже в браузері.
-  const base = "pointer-events-none absolute animate-[ornament-in_700ms_ease-out]";
+/** Мак: чотири широкі пелюстки (задні — темніші) і чорна серединка з тичинками. */
+function Poppy({ x, y, r }: { x: number; y: number; r: number }) {
+  const petal = (angle: number, fill: string) => {
+    const rad = (angle * Math.PI) / 180;
+    return (
+      <circle
+        cx={(Math.cos(rad) * r * 0.42).toFixed(2)}
+        cy={(Math.sin(rad) * r * 0.42).toFixed(2)}
+        r={r * 0.62}
+        fill={fill}
+      />
+    );
+  };
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      {petal(-135, RED_DARK)}
+      {petal(-45, RED_DARK)}
+      {petal(45, RED)}
+      {petal(135, RED)}
+      {Array.from({ length: 10 }, (_, i) => {
+        const rad = ((i * 36) * Math.PI) / 180;
+        return (
+          <line
+            key={i}
+            x1="0"
+            y1="0"
+            x2={(Math.cos(rad) * r * 0.5).toFixed(2)}
+            y2={(Math.sin(rad) * r * 0.5).toFixed(2)}
+            stroke={INK}
+            strokeWidth="0.9"
+            strokeLinecap="round"
+          />
+        );
+      })}
+      <circle r={r * 0.24} fill={INK} />
+    </g>
+  );
+}
 
-  switch (kind) {
-    case "flower":
-      return (
-        <div aria-hidden="true" className={`${base} right-0 bottom-0 h-20 w-40`}>
-          <FlowerSpray />
-        </div>
-      );
-    case "periwinkle":
-      return (
-        <div aria-hidden="true" className={`${base} right-0 bottom-0 h-20 w-40`}>
-          <PeriwinkleVine />
-        </div>
-      );
-    // Смуги не доходять до кутів: заокруглення обрізало б їх навскіс.
-    case "bandTop":
-    case "bandBottom":
-      return (
-        <div
-          aria-hidden="true"
-          className={`${base} inset-x-5 h-2.5 ${kind === "bandTop" ? "top-2" : "bottom-2"}`}
-          style={{ backgroundImage: BAND_TILE_H, backgroundRepeat: "repeat-x" }}
+/**
+ * Гілка маків: велика квітка, менша і похилений пуп'янок
+ * на тонких стеблах з сизим листям. Рамка 160×80.
+ */
+function PoppySpray() {
+  return (
+    <svg viewBox="0 0 160 80" className="h-full w-full">
+      <g fill="none" stroke={SAGE} strokeLinecap="round" strokeWidth="1.6">
+        <path d="M164 82C146 76 120 75 96 75C76 75 60 72 46 66" />
+        <path d="M148 78C142 66 136 56 132 44" />
+        <path d="M84 75C80 68 76 62 70 56" />
+        <path d="M112 75C113 66 112 58 106 51" />
+      </g>
+      <Leaf x={140} y={76} angle={-160} len={20} width={4} fill={SAGE} vein={GREEN_PALE} />
+      <Leaf x={140} y={75} angle={-70} len={15} width={3.5} fill={GREEN} vein={GREEN_PALE} />
+      <Leaf x={100} y={75} angle={-150} len={17} width={3.5} fill={GREEN} vein={GREEN_PALE} />
+      <Leaf x={62} y={72} angle={-160} len={15} width={3.5} fill={SAGE} vein={GREEN_PALE} />
+
+      <Poppy x={131} y={38} r={15} />
+      <Poppy x={68} y={51} r={10} />
+      {/* Похилений пуп'янок. */}
+      <ellipse cx="104" cy="54" rx="3.6" ry="5.6" fill={SAGE} transform="rotate(35 104 54)" />
+      <path d="M102 51C103 49 105 49 106 51" stroke={RED} strokeWidth="1.4" fill="none" />
+    </svg>
+  );
+}
+
+/** Волошка: віночок зубчастих лієчок навколо темної серединки. */
+function Cornflower({ x, y, r }: { x: number; y: number; r: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      {Array.from({ length: 9 }, (_, i) => (
+        <path
+          key={i}
+          d={`M0 ${-r * 0.3}L${-r * 0.32} ${-r}L${-r * 0.1} ${-r * 0.86}L0 ${-r * 1.02}L${r * 0.1} ${-r * 0.86}L${r * 0.32} ${-r}Z`}
+          transform={`rotate(${i * 40})`}
+          fill={i % 2 === 0 ? BLUE : BLUE_LIGHT}
         />
-      );
-    case "bandLeft":
-      return (
-        <div
-          aria-hidden="true"
-          className={`${base} inset-y-5 left-2 w-2.5`}
-          style={{ backgroundImage: BAND_TILE_V, backgroundRepeat: "repeat-y" }}
-        />
-      );
-  }
+      ))}
+      <circle r={r * 0.36} fill={BLUE_DEEP} />
+      <circle r={r * 0.14} fill={YELLOW} />
+    </g>
+  );
+}
+
+/**
+ * Гілка волошок: дві квітки й пуп'янок, вузьке сизе листя,
+ * між ними — жовті колоски. Рамка 160×80.
+ */
+function CornflowerSpray() {
+  return (
+    <svg viewBox="0 0 160 80" className="h-full w-full">
+      <g fill="none" stroke={SAGE} strokeLinecap="round" strokeWidth="1.6">
+        <path d="M164 80C150 74 132 74 112 75C90 76 70 73 50 67" />
+        <path d="M146 76C140 64 136 54 134 44" />
+        <path d="M96 75C92 68 88 62 82 57" />
+        <path d="M120 75C121 68 121 62 119 56" />
+        <path d="M66 71C66 65 64 60 60 56" />
+      </g>
+      <Leaf x={138} y={75} angle={-165} len={22} width={2.8} fill={SAGE} vein={GREEN_PALE} />
+      <Leaf x={138} y={75} angle={-75} len={14} width={2.6} fill={GREEN} vein={GREEN_PALE} />
+      <Leaf x={106} y={75} angle={-160} len={19} width={2.6} fill={GREEN} vein={GREEN_PALE} />
+      <Leaf x={74} y={73} angle={-160} len={17} width={2.6} fill={SAGE} vein={GREEN_PALE} />
+
+      <Cornflower x={134} y={40} r={13} />
+      <Cornflower x={81} y={54} r={9} />
+      {/* Пуп'янок: зелена чашечка з синім кінчиком. */}
+      <ellipse cx="119" cy="54" rx="3.4" ry="4.6" fill={GREEN} />
+      <path d="M116.4 51.5L119 47.5L121.6 51.5Z" fill={BLUE} />
+      {/* Колосок. */}
+      <g fill={YELLOW}>
+        {[0, 1, 2, 3].map((i) => (
+          <ellipse
+            key={i}
+            cx={i % 2 === 0 ? 58.6 : 61.4}
+            cy={53 - i * 3.4}
+            rx="1.5"
+            ry="2.4"
+            transform={`rotate(${i % 2 === 0 ? -25 : 25} ${i % 2 === 0 ? 58.6 : 61.4} ${53 - i * 3.4})`}
+          />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+const SPRAYS: Record<OrnamentKind, () => React.JSX.Element> = {
+  rose: RoseSpray,
+  periwinkle: PeriwinkleVine,
+  poppy: PoppySpray,
+  cornflower: CornflowerSpray,
+};
+
+export default function ReviewOrnament({ kind }: { kind: OrnamentKind }) {
+  const Spray = SPRAYS[kind];
+  return (
+    // З'являється плавно: на сторінці орнаменти розставляються вже в браузері.
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute right-0 bottom-0 h-20 w-40 animate-[ornament-in_700ms_ease-out]"
+    >
+      <Spray />
+    </div>
+  );
 }

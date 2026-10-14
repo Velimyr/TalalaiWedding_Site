@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import Image from "next/image";
 import Link from "next/link";
 import LeafVine from "@/components/LeafVine";
@@ -9,6 +11,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import {
   ABOUT,
+  AUTHOR,
   BOOK,
   CONTENT_BLOCK,
   QUESTION_BLOCK,
@@ -16,6 +19,19 @@ import {
   REVIEWS_PREVIEW_COUNT,
   VIDEO_BLOCK,
 } from "@/config/book";
+
+/**
+ * Фото авторки може ще не лежати в public/ — тоді замість нього ініціали,
+ * а не зламана картинка. Сторінка статична, тож перевірка — на етапі збірки.
+ */
+const HAS_AUTHOR_PHOTO = existsSync(
+  path.join(process.cwd(), "public", AUTHOR.photoSrc),
+);
+
+const AUTHOR_INITIALS = AUTHOR.name
+  .split(" ")
+  .map((word) => word[0])
+  .join("");
 
 export default function Home() {
   return (
@@ -88,6 +104,38 @@ export default function Home() {
                 {ABOUT.paragraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-12 grid gap-6 rounded-2xl border border-line bg-white p-6 shadow-[0_16px_36px_-30px_rgba(14,74,46,0.8)] sm:grid-cols-[180px_1fr] sm:items-center sm:gap-8 sm:p-8">
+              <div className="relative mx-auto aspect-[5/7] w-40 overflow-hidden rounded-xl border border-line bg-surface-strong sm:mx-0 sm:w-full">
+                {HAS_AUTHOR_PHOTO ? (
+                  <Image
+                    src={AUTHOR.photoSrc}
+                    alt={AUTHOR.name}
+                    fill
+                    sizes="180px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div
+                    aria-hidden="true"
+                    className="flex h-full items-center justify-center font-display text-5xl text-accent-deep/60"
+                  >
+                    {AUTHOR_INITIALS}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm uppercase tracking-[0.22em] text-accent">
+                  {AUTHOR.heading}
+                </p>
+                <h3 className="font-display text-3xl text-accent-deep">
+                  {AUTHOR.name}
+                </h3>
+                <p className="pt-1 text-base leading-relaxed text-muted">
+                  {AUTHOR.text}
+                </p>
               </div>
             </div>
           </div>

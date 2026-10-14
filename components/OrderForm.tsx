@@ -14,13 +14,20 @@ import {
   PREORDER_SUCCESS_TEXT,
   PREORDER_TEXT,
   VARIANTS,
+  currentPrice,
+  hasPreorderDiscount,
   variantById,
   variantOptionLabel,
   type OrderKind,
   type PaymentMethodId,
   type VariantId,
 } from "@/config/book";
-import { closePaymentTab, goToPayment, openPaymentTab } from "@/lib/payment";
+import {
+  closePaymentTab,
+  goToPayment,
+  openPaymentTab,
+  paymentUrlFor,
+} from "@/lib/payment";
 
 /** Порожній рядок — покупець ще не обрав спосіб оплати. */
 type PaymentSelection = PaymentMethodId | "";
@@ -92,6 +99,7 @@ export default function OrderForm() {
     orderId: string;
     kind: OrderKind;
     isOnline: boolean;
+    amount: number;
   } | null>(null);
   const [needsManualPayment, setNeedsManualPayment] = useState(false);
   const [form, setForm] = useState<OrderForm>(EMPTY_FORM);
@@ -99,10 +107,11 @@ export default function OrderForm() {
   const isGift = form.kind === "gift";
   const isOnline = isGift || form.paymentMethod === "online";
 
-  const price = useMemo(
-    () => variantById(form.variant)?.price ?? 0,
-    [form.variant],
-  );
+  const variant = useMemo(() => variantById(form.variant), [form.variant]);
+  const price = variant ? currentPrice(variant) : 0;
+  const isDiscounted = variant ? hasPreorderDiscount(variant) : false;
+  // До оплати: подарунок — за всі примірники, звичайне замовлення — одна книга.
+  const amount = isGift ? price * (Number(form.quantity) || 1) : price;
 
   const setKind = (kind: OrderKind) => {
     setForm((prev) => ({ ...prev, kind }));
@@ -144,10 +153,11 @@ export default function OrderForm() {
         orderId: responseJson.orderId,
         kind: form.kind,
         isOnline,
+        amount,
       });
 
       if (isOnline) {
-        goToPayment(paymentTab, () => setNeedsManualPayment(true));
+        goToPayment(paymentTab, amount, () => setNeedsManualPayment(true));
       }
 
       // Режим лишається тим самим: хто дарував, імовірно, дарує й далі.
@@ -183,7 +193,22 @@ export default function OrderForm() {
           <p className="text-xs uppercase tracking-[0.22em] text-muted">
             {isGift ? "За примірник" : "Вартість"}
           </p>
-          <p className="text-xl font-semibold text-red">{price} грн</p>
+          {/* Під час передзамовлення звичайна ціна — закреслена й дрібніша,
+              а на передньому плані та, що діє зараз. */}
+          <p className="flex items-baseline justify-end gap-2">
+            {isDiscounted && variant ? (
+              <s className="text-sm font-medium text-muted">
+                <span className="sr-only">Звичайна ціна: </span>
+                {variant.price} грн
+              </s>
+            ) : null}
+            <span className="text-xl font-semibold text-red">
+              {isDiscounted ? (
+                <span className="sr-only">Ціна передзамовлення: </span>
+              ) : null}
+              {price} грн
+            </span>
+          </p>
         </div>
       </div>
 
@@ -428,7 +453,7 @@ export default function OrderForm() {
           </div>
           {orderMeta.isOnline && HAS_PAYMENT_URL && needsManualPayment ? (
             <a
-              href={BOOK.paymentUrl}
+              href={paymentUrlFor(orderMeta.amount)}
               target="_blank"
               rel="noreferrer"
               className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-accent px-6 py-3 text-base font-semibold text-white transition hover:bg-accent-hover"
