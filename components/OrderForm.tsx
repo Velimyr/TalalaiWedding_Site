@@ -52,6 +52,9 @@ const EMPTY_FORM: OrderForm = {
   library: "",
 };
 
+/** Один варіант — список не показуємо: обирати нема з чого. */
+const HAS_VARIANT_CHOICE = VARIANTS.length > 1;
+
 const fieldClass =
   "h-11 rounded-lg border border-line bg-white px-3 text-foreground transition focus:border-accent";
 
@@ -221,39 +224,43 @@ export default function OrderForm() {
       ) : null}
 
       <form onSubmit={submit} className="grid gap-4">
-        <div className={isGift ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
-          <label className="grid gap-2 text-sm font-medium">
-            Варіант замовлення
-            <select
-              className={fieldClass}
-              value={form.variant}
-              onChange={onChange("variant")}
-              required
-            >
-              {VARIANTS.map((variant) => (
-                <option key={variant.id} value={variant.id}>
-                  {variantOptionLabel(variant)}
-                </option>
-              ))}
-            </select>
-          </label>
-          {isGift ? (
-            <label className="grid gap-2 text-sm font-medium">
-              Кількість примірників
-              <input
-                className={fieldClass}
-                value={form.quantity}
-                onChange={onChange("quantity")}
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={GIFT_LIMITS.quantity}
-                step={1}
-                required
-              />
-            </label>
-          ) : null}
-        </div>
+        {HAS_VARIANT_CHOICE || isGift ? (
+          <div className={isGift ? "grid gap-4 md:grid-cols-2" : "grid gap-4"}>
+            {HAS_VARIANT_CHOICE ? (
+              <label className="grid gap-2 text-sm font-medium">
+                Варіант замовлення
+                <select
+                  className={fieldClass}
+                  value={form.variant}
+                  onChange={onChange("variant")}
+                  required
+                >
+                  {VARIANTS.map((variant) => (
+                    <option key={variant.id} value={variant.id}>
+                      {variantOptionLabel(variant)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {isGift ? (
+              <label className="grid gap-2 text-sm font-medium">
+                Кількість примірників
+                <input
+                  className={fieldClass}
+                  value={form.quantity}
+                  onChange={onChange("quantity")}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={GIFT_LIMITS.quantity}
+                  step={1}
+                  required
+                />
+              </label>
+            ) : null}
+          </div>
+        ) : null}
 
         <label className="grid gap-2 text-sm font-medium">
           Контакт для звʼязку

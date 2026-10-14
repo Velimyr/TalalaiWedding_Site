@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import ReviewCard from "@/components/ReviewCard";
+import ReviewGrid from "@/components/ReviewGrid";
 import ReviewModal from "@/components/ReviewModal";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
@@ -49,11 +49,7 @@ export default function ReviewsPage() {
         <section>
           <div className="mx-auto w-full max-w-5xl px-6 py-12">
             {REVIEWS.length > 0 ? (
-              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {REVIEWS.map((review) => (
-                  <ReviewCard key={review.quote} review={review} />
-                ))}
-              </div>
+              <ReviewGrid reviews={REVIEWS} />
             ) : (
               <p className="text-base text-muted">
                 Відгуків поки немає — будьте першим.

@@ -4,7 +4,7 @@ import LeafVine from "@/components/LeafVine";
 import OrderForm from "@/components/OrderForm";
 import QuestionModal from "@/components/QuestionModal";
 import ReviewModal from "@/components/ReviewModal";
-import ReviewsPreview from "@/components/ReviewsPreview";
+import ReviewGrid from "@/components/ReviewGrid";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import {
@@ -14,6 +14,7 @@ import {
   QUESTION_BLOCK,
   REVIEWS,
   REVIEWS_PREVIEW_COUNT,
+  VIDEO_BLOCK,
 } from "@/config/book";
 
 export default function Home() {
@@ -119,9 +120,10 @@ export default function Home() {
             </div>
             {REVIEWS.length > 0 ? (
               <div className="mt-8">
-                <ReviewsPreview
+                <ReviewGrid
                   reviews={REVIEWS}
                   count={REVIEWS_PREVIEW_COUNT}
+                  shuffle
                 />
               </div>
             ) : (
@@ -148,7 +150,8 @@ export default function Home() {
             <p className="text-sm uppercase tracking-[0.22em] text-accent">
               Посилання
             </p>
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
+            {/* Три блоки: на планшеті два в ряд, а останній — на всю ширину. */}
+            <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 md:p-7">
                 <h2 className="font-display text-3xl text-accent-deep">
                   {QUESTION_BLOCK.heading}
@@ -161,27 +164,34 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 md:p-7">
-                <h2 className="font-display text-3xl text-accent-deep">
-                  {CONTENT_BLOCK.heading}
-                </h2>
-                <p className="mt-3 text-base leading-relaxed text-muted">
-                  {CONTENT_BLOCK.text}
-                </p>
-                <div className="mt-auto grid gap-3 pt-6 text-sm">
-                  {CONTENT_BLOCK.links.map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      className="rounded-xl border border-blue/30 bg-blue-soft px-4 py-3 text-center font-semibold text-blue transition hover:border-blue/60"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+              {[CONTENT_BLOCK, VIDEO_BLOCK].map((block, index, blocks) => (
+                <div
+                  key={block.heading}
+                  className={`flex h-full flex-col rounded-2xl border border-line bg-surface p-6 md:p-7 ${
+                    index === blocks.length - 1 ? "md:col-span-2 lg:col-span-1" : ""
+                  }`}
+                >
+                  <h2 className="font-display text-3xl text-accent-deep">
+                    {block.heading}
+                  </h2>
+                  <p className="mt-3 text-base leading-relaxed text-muted">
+                    {block.text}
+                  </p>
+                  <div className="mt-auto grid gap-3 pt-6 text-sm">
+                    {block.links.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        className="rounded-xl border border-blue/30 bg-blue-soft px-4 py-3 text-center font-semibold text-blue transition hover:border-blue/60"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
