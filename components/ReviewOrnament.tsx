@@ -26,34 +26,61 @@ const SAGE = "#5f8f6e";
 const BLUE_LIGHT = "#5b84f0";
 const BLUE_DEEP = "#1e2f8f";
 
-/** Скільки карток у ряду на широкому екрані — від цього рахуємо «1–2 в ряду». */
-const ROW_SIZE = 3;
+/** Скільки карток у ряду на широкому екрані — від цього рахуємо сусідство. */
+const COLUMNS = 3;
+
+function shuffled<T>(items: readonly T[], random: () => number) {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/** Картки стоять поруч у сітці: в одному ряду впритул або одна під одною. */
+const areNeighbours = (a: number, b: number) => {
+  const sameRow = Math.floor(a / COLUMNS) === Math.floor(b / COLUMNS);
+  return (sameRow && Math.abs(a - b) === 1) || Math.abs(a - b) === COLUMNS;
+};
 
 /**
- * Для кожної трійки карток прикрашає одну або дві випадкові, решта — без
- * орнаменту. Сусідні орнаменти не повторюються.
+ * Прикрашає приблизно третину–половину карток (на 6 карток — 2 або 3),
+ * і так, щоб орнаменти не збивалися докупи: дві прикрашені картки ніколи
+ * не стоять поруч — ні в ряду, ні одна під одною. Види квітів не повторюються.
  */
 export function pickOrnaments(count: number, random: () => number = Math.random) {
   const result: (OrnamentKind | null)[] = Array.from({ length: count }, () => null);
-  let previous: OrnamentKind | null = null;
+  if (count === 0) return result;
 
-  for (let start = 0; start < count; start += ROW_SIZE) {
-    const size = Math.min(ROW_SIZE, count - start);
-    const decorated = Math.min(size, 1 + Math.floor(random() * 2));
+  const min = Math.max(1, Math.round(count / 3));
+  const max = Math.max(min, Math.floor(count / 2));
+  const target = min + Math.floor(random() * (max - min + 1));
 
-    const slots = Array.from({ length: size }, (_, index) => index);
-    for (let i = slots.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(random() * (i + 1));
-      [slots[i], slots[j]] = [slots[j], slots[i]];
+  // Жадібно беремо картки у випадковому порядку, пропускаючи сусідів уже
+  // обраних. Інколи такий обхід заганяє себе в кут і набирає менше, ніж
+  // треба, — тоді пробуємо ще раз і лишаємо найкращу спробу.
+  let best: number[] = [];
+  for (let attempt = 0; attempt < 20 && best.length < target; attempt += 1) {
+    const picked: number[] = [];
+    for (const index of shuffled(
+      Array.from({ length: count }, (_, i) => i),
+      random,
+    )) {
+      if (picked.length === target) break;
+      if (picked.every((other) => !areNeighbours(index, other))) {
+        picked.push(index);
+      }
     }
-
-    for (const slot of slots.slice(0, decorated).sort((a, b) => a - b)) {
-      const choices = ORNAMENT_KINDS.filter((kind) => kind !== previous);
-      const kind = choices[Math.floor(random() * choices.length)];
-      result[start + slot] = kind;
-      previous = kind;
-    }
+    if (picked.length > best.length) best = picked;
   }
+
+  const kinds = shuffled(ORNAMENT_KINDS, random);
+  best
+    .sort((a, b) => a - b)
+    .forEach((index, order) => {
+      result[index] = kinds[order % kinds.length];
+    });
 
   return result;
 }
