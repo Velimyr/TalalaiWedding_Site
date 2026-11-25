@@ -28,7 +28,7 @@ npm run build
 | Відгуки | `REVIEWS` — зараз **згенеровані заглушки**, замінити реальними. На лендінгу — `REVIEWS_PREVIEW_COUNT` випадкових, на `/reviews` — усі |
 | Тексти режиму «Подарунок бібліотеці» у формі замовлення | `GIFT` |
 | Обкладинка | `public/cover.png` — зараз там плейсхолдер |
-| Логотип | оригінал `public/tw_logo.png`; на сайті — `public/logo.webp` (192 px), favicon та іконки — `app/favicon.ico`, `app/icon.png`, `app/apple-icon.png` |
+| Логотип | оригінал `public/tw_logo.png`; на сайті — `public/logo.webp` (384 px), favicon та іконки — `app/favicon.ico`, `app/icon.png`, `app/apple-icon.png` |
 | Фото авторки | `public/author.jpg` (портрет 5:7, 600 px завширшки; поки файлу немає — ініціали) |
 | Домен і посилання на оплату | змінні оточення (нижче) |
 
