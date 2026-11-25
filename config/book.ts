@@ -52,6 +52,9 @@ export const BOOK = {
   shortDescription:
     "Книга про весільний обряд Талалаївщини: від сватання до перезви — з піснями, звичаями та живими свідченнями.",
   siteUrl: resolveSiteUrl(),
+  // Логотип у hero. Favicon та іконки — app/favicon.ico, app/icon.png,
+  // app/apple-icon.png (зроблені з public/tw_logo.png).
+  logoSrc: "/logo.webp",
   coverSrc: "/cover.png",
   // Реальні пікселі файлу. Міняєте обкладинку — оновіть і ці два числа,
   // інакше next/image рахуватиме пропорцію за старими й обріже картинку.
