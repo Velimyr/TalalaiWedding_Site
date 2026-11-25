@@ -49,14 +49,14 @@ export default function Home() {
           </div>
           <div className="relative mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 md:pl-[150px] lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-24 2xl:pl-[172px]">
             <div className="space-y-6">
-              {/* Логотип — невеликий знак поруч із надрядком, над назвою книги. */}
+              {/* Логотип поруч із надрядком, над назвою книги. */}
               <div className="flex items-center gap-4">
                 <Image
                   src={BOOK.logoSrc}
                   alt=""
-                  width={64}
-                  height={64}
-                  className="h-14 w-14 shrink-0 sm:h-16 sm:w-16"
+                  width={192}
+                  height={192}
+                  className="h-[168px] w-[168px] shrink-0 sm:h-48 sm:w-48"
                   priority
                 />
                 <p className="text-xs uppercase tracking-[0.4em] text-blue">
